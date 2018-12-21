@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xmlns:jdbc="http://www.springframework.org/schema/jdbc"
+       xmlns:aop="http://www.springframework.org/schema/aop"
+       xmlns:tx="http://www.springframework.org/schema/tx"
+       xsi:schemaLocation="
+       http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+       http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd
+        http://www.springframework.org/schema/jdbc http://www.springframework.org/schema/jdbc/spring-jdbc.xsd
+        http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop.xsd
+        http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx.xsd
+        ">
+    <bean id="dataSource" class="org.springframework.jdbc.datasource.DriverManagerDataSource">
+        <property name="driverClassName" value="${jdbc.driverClassName}"/>
+        <property name="url" value="${jdbc.url}"/>
+        <property name="username" value="${jdbc.username}"/>
+        <property name="password" value="${jdbc.password}"/>
+    </bean>
+    <context:property-placeholder location="jdbc.properties"/>
+    <!--配置jdbc模板-->
+    <bean id="myJdbcTemplate" class="org.springframework.jdbc.core.JdbcTemplate">
+        <property name="dataSource" ref="dataSource"></property>
+    </bean>
+
+    <bean id="customerMoney" class="org.lanqiao.dao.impl.CustomerMoneyDaoImpl">
+        <property name="jdbcTemplate" ref="myJdbcTemplate"></property>
+    </bean>
+    <bean id="shopMoney" class="org.lanqiao.dao.impl.ShopMoneyDaoImpl">
+        <property name="jdbcTemplate" ref="myJdbcTemplate"></property>
+    </bean>
+    <bean id="payService" class="org.lanqiao.service.impl.PayServiceImpl">
+        <property name="customerMoneyDao" ref="customerMoney"></property>
+        <property name="shopMoneyDao" ref="shopMoney"></property>
+    </bean>
+
+    <!--事务相关-->
+    <!-- 对dataSource 数据源进行事务管理 -->
+    <!--==============================-->
+    <bean id="txManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+        <property name="dataSource" ref="dataSource"></property>
+    </bean>
+    <!--=================-->
+   <!-- <bean id="payException" class="org.lanqiao.pojo.PayException"></bean>-->
+    <tx:advice id="txAdvice" transaction-manager="txManager">
+        <tx:attributes>
+            <tx:method name="get*" propagation="SUPPORTS" read-only="true"/>
+            <tx:method name="pay" propagation="REQUIRED" rollback-for="PayException"></tx:method>
+        </tx:attributes>
+    </tx:advice>
+    <aop:config proxy-target-class="true">
+        <aop:pointcut id="payService1" expression="execution(* org.lanqiao.service.IPayService.*(..))"></aop:pointcut>
+        <aop:advisor advice-ref="txAdvice" pointcut-ref="payService1"></aop:advisor>
+    </aop:config>
+
+</beans>
